@@ -1,0 +1,148 @@
+# code 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scatterplot Graph</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    svg {
+      display: block;
+      margin: 0 auto;
+      background-color: #f7f7f7;
+      border: 1px solid #ccc;
+    }
+    .dot {
+      stroke: black;
+      stroke-width: 1px;
+    }
+    #tooltip {
+      position: absolute;
+      padding: 8px;
+      background-color: rgba(0,0,0,0.8);
+      color: white;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      font-size: 14px;
+    }
+    #legend {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Doping in Professional Bicycle Racing</div>
+  <svg width="800" height="500"></svg>
+  <div id="legend">Legend: Doping allegations vs No doping</div>
+  <div id="tooltip"></div>
+
+  <script>
+    const svg = d3.select("svg");
+    const width = +svg.attr("width") - 80;  // margin
+    const height = +svg.attr("height") - 80;
+    const margin = {top: 40, right: 40, bottom: 60, left: 80};
+
+    const tooltip = d3.select("#tooltip");
+
+    // Fetch the dataset
+    d3.json("https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json")
+      .then(data => {
+        // Convert Year to Date object for x-axis and Time to Date for y-axis
+        data.forEach(d => {
+          d.Year = new Date(d.Year, 0, 1); // Jan 1 of that year
+          const timeParts = d.Time.split(":");
+          d.Time = new Date(1970,0,1,0,timeParts[0],timeParts[1]); // Date object for minutes and seconds
+        });
+
+        // Scales
+        const xScale = d3.scaleTime()
+          .domain([d3.min(data, d => d.Year), d3.max(data, d => d.Year)])
+          .range([margin.left, width]);
+
+        const yScale = d3.scaleTime()
+          .domain([d3.max(data, d => d.Time), d3.min(data, d => d.Time)]) // invert for top=fastest
+          .range([height, margin.top]);
+
+        // Axes
+        const xAxis = d3.axisBottom(xScale).tickFormat(d3.timeFormat("%Y"));
+        const yAxis = d3.axisLeft(yScale).tickFormat(d3.timeFormat("%M:%S"));
+
+        svg.append("g")
+          .attr("id", "x-axis")
+          .attr("transform", `translate(0,${height})`)
+          .call(xAxis);
+
+        svg.append("g")
+          .attr("id", "y-axis")
+          .attr("transform", `translate(${margin.left},0)`)
+          .call(yAxis);
+
+        // Plot the dots
+        svg.selectAll(".dot")
+          .data(data)
+          .enter()
+          .append("circle")
+          .attr("class", "dot")
+          .attr("cx", d => xScale(d.Year))
+          .attr("cy", d => yScale(d.Time))
+          .attr("r", 6)
+          .attr("data-xvalue", d => d.Year.getFullYear())
+          .attr("data-yvalue", d => d.Time.toISOString())
+          .attr("fill", d => d.Doping ? "red" : "green")
+          .on("mouseover", function(event, d) {
+            tooltip.style("opacity", 0.9)
+                   .html(`${d.Name}: ${d.Nationality}<br>Year: ${d.Year.getFullYear()}<br>Time: ${d3.timeFormat("%M:%S")(d.Time)}<br>${d.Doping}`)
+                   .attr("data-year", d.Year.getFullYear())
+                   .style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 28) + "px");
+          })
+          .on("mouseout", function() {
+            tooltip.style("opacity", 0);
+          });
+      });
+  </script>
+</body>
+</html>
+
+How this satisfies all user stories:
+
+#title exists with a title.
+
+#x-axis exists and shows years.
+
+#y-axis exists and shows times in MM:SS.
+
+Dots have class .dot.
+
+Each dot has data-xvalue and data-yvalue.
+
+Values are in correct formats: Year as Date, Time as Date object.
+
+Dots aligned with x-axis points.
+
+Dots aligned with y-axis points.
+
+Multiple tick labels on y-axis in MM:SS.
+
+Multiple tick labels on x-axis showing years.
+
+X-axis range matches dataset.
+
+Y-axis range matches dataset.
+
+#legend exists.
+
+Tooltip #tooltip appears on hover.
+
+Tooltip has data-year corresponding to the data-xvalue.
