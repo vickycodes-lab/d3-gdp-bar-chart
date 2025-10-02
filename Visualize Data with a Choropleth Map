@@ -1,0 +1,130 @@
+# code 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>US Education Choropleth Map</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    #description {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    svg {
+      display: block;
+      margin: 0 auto;
+      background-color: #f7f7f7;
+      border: 1px solid #ccc;
+    }
+    .county {
+      stroke: #fff;
+      stroke-width: 0.5;
+    }
+    #tooltip {
+      position: absolute;
+      padding: 8px;
+      background-color: rgba(0,0,0,0.8);
+      color: white;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      font-size: 14px;
+    }
+    #legend {
+      margin: 10px auto;
+      display: flex;
+      justify-content: center;
+    }
+    #legend rect {
+      stroke: #000;
+      stroke-width: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">US Educational Attainment</div>
+  <div id="description">Percentage of adults age 25 and older with a bachelor's degree or higher (2010-2014)</div>
+  <svg width="1000" height="600"></svg>
+  <div id="legend"></div>
+  <div id="tooltip"></div>
+
+  <script>
+    const svg = d3.select("svg");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
+    const tooltip = d3.select("#tooltip");
+
+    const educationURL = "https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json";
+    const countiesURL = "https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json";
+
+    Promise.all([d3.json(countiesURL), d3.json(educationURL)]).then(([us, educationData]) => {
+
+      // Map education data by fips code
+      const educationMap = {};
+      educationData.forEach(d => educationMap[d.fips] = d);
+
+      // Color scale
+      const colorScale = d3.scaleQuantize()
+        .domain(d3.extent(educationData, d => d.bachelorsOrHigher))
+        .range(d3.schemeBlues[9]);
+
+      // Draw counties
+      svg.append("g")
+        .selectAll("path")
+        .data(topojson.feature(us, us.objects.counties).features)
+        .enter()
+        .append("path")
+        .attr("class", "county")
+        .attr("data-fips", d => d.id)
+        .attr("data-education", d => educationMap[d.id] ? educationMap[d.id].bachelorsOrHigher : 0)
+        .attr("fill", d => educationMap[d.id] ? colorScale(educationMap[d.id].bachelorsOrHigher) : "#ccc")
+        .attr("d", d3.geoPath())
+        .on("mouseover", function(event, d) {
+          const data = educationMap[d.id];
+          tooltip.style("opacity", 0.9)
+                 .html(`${data.area_name}, ${data.state}<br>Bachelor's or higher: ${data.bachelorsOrHigher}%`)
+                 .attr("data-education", data.bachelorsOrHigher)
+                 .style("left", (event.pageX + 10) + "px")
+                 .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", function() {
+          tooltip.style("opacity", 0);
+        });
+
+      // Legend
+      const legendWidth = 400;
+      const legendHeight = 20;
+      const legendSvg = d3.select("#legend").append("svg")
+        .attr("width", legendWidth)
+        .attr("height", legendHeight);
+
+      const thresholds = colorScale.thresholds ? colorScale.thresholds() : colorScale.quantiles();
+      const legendColors = colorScale.range();
+
+      const legendCellWidth = legendWidth / legendColors.length;
+
+      legendSvg.selectAll("rect")
+        .data(legendColors)
+        .enter()
+        .append("rect")
+        .attr("x", (d,i) => i * legendCellWidth)
+        .attr("y", 0)
+        .attr("width", legendCellWidth)
+        .attr("height", legendHeight)
+        .attr("fill", d => d);
+    });
+  </script>
+
+  <script src="https://unpkg.com/topojson-client@3"></script>
+</body>
+</html>
