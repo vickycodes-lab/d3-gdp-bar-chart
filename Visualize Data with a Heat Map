@@ -1,0 +1,153 @@
+# code
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Global Temperature Heat Map</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    #description {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    svg {
+      display: block;
+      margin: 0 auto;
+      background-color: #f7f7f7;
+      border: 1px solid #ccc;
+    }
+    .cell {
+      stroke: #555;
+      stroke-width: 0.5;
+    }
+    #tooltip {
+      position: absolute;
+      padding: 8px;
+      background-color: rgba(0,0,0,0.8);
+      color: white;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      font-size: 14px;
+    }
+    #legend {
+      margin: 10px auto;
+      display: flex;
+      justify-content: center;
+    }
+    #legend rect {
+      stroke: #000;
+      stroke-width: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Monthly Global Land-Surface Temperature</div>
+  <div id="description">1753 - 2015: Temperatures are in Celsius and represent variance from base temperature.</div>
+  <svg width="1000" height="500"></svg>
+  <div id="legend"></div>
+  <div id="tooltip"></div>
+
+  <script>
+    const svg = d3.select("svg");
+    const width = +svg.attr("width") - 100;
+    const height = +svg.attr("height") - 100;
+    const margin = {top: 50, right: 20, bottom: 60, left: 80};
+    const tooltip = d3.select("#tooltip");
+
+    d3.json("https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json")
+      .then(data => {
+        const baseTemp = data.baseTemperature;
+        const dataset = data.monthlyVariance;
+
+        // Convert month to zero-based index
+        dataset.forEach(d => d.month = d.month - 1);
+
+        // Scales
+        const xScale = d3.scaleTime()
+          .domain([d3.min(dataset, d => d.year), d3.max(dataset, d => d.year)])
+          .range([margin.left, width]);
+
+        const yScale = d3.scaleBand()
+          .domain(d3.range(12))
+          .range([margin.top, height]);
+
+        const tempExtent = d3.extent(dataset, d => baseTemp + d.variance);
+        const colorScale = d3.scaleQuantize()
+          .domain(tempExtent)
+          .range(d3.schemeRdYlBu[11].slice().reverse()); // 11-color palette reversed
+
+        // Axes
+        const xAxis = d3.axisBottom(xScale).tickFormat(d3.format("d"));
+        const yAxis = d3.axisLeft(yScale)
+          .tickFormat(d => d3.timeFormat("%B")(new Date(0, d)));
+
+        svg.append("g")
+          .attr("id", "x-axis")
+          .attr("transform", `translate(0, ${height})`)
+          .call(xAxis);
+
+        svg.append("g")
+          .attr("id", "y-axis")
+          .attr("transform", `translate(${margin.left},0)`)
+          .call(yAxis);
+
+        // Draw cells
+        const cellWidth = (width - margin.left) / (d3.max(dataset, d => d.year) - d3.min(dataset, d => d.year) + 1);
+        const cellHeight = yScale.bandwidth();
+
+        svg.selectAll(".cell")
+          .data(dataset)
+          .enter()
+          .append("rect")
+          .attr("class", "cell")
+          .attr("data-year", d => d.year)
+          .attr("data-month", d => d.month)
+          .attr("data-temp", d => baseTemp + d.variance)
+          .attr("x", d => xScale(d.year))
+          .attr("y", d => yScale(d.month))
+          .attr("width", cellWidth)
+          .attr("height", cellHeight)
+          .attr("fill", d => colorScale(baseTemp + d.variance))
+          .on("mouseover", function(event, d) {
+            tooltip.style("opacity", 0.9)
+                   .html(`Year: ${d.year}<br>Month: ${d3.timeFormat("%B")(new Date(0,d.month))}<br>Temp: ${(baseTemp + d.variance).toFixed(2)}℃<br>Variance: ${d.variance}℃`)
+                   .attr("data-year", d.year)
+                   .style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 28) + "px");
+          })
+          .on("mouseout", function() { tooltip.style("opacity", 0); });
+
+        // Legend
+        const legendWidth = 400;
+        const legendHeight = 20;
+        const legendColors = colorScale.range();
+        const legend = d3.select("#legend")
+          .append("svg")
+          .attr("width", legendWidth)
+          .attr("height", legendHeight);
+
+        const legendCellWidth = legendWidth / legendColors.length;
+        legend.selectAll("rect")
+          .data(legendColors)
+          .enter()
+          .append("rect")
+          .attr("x", (d,i) => i * legendCellWidth)
+          .attr("y", 0)
+          .attr("width", legendCellWidth)
+          .attr("height", legendHeight)
+          .attr("fill", d => d);
+      });
+  </script>
+</body>
+</html>
