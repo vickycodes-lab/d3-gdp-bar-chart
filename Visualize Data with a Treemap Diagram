@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Movie Sales Tree Map</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    #description {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    svg {
+      display: block;
+      margin: 0 auto;
+      border: 1px solid #ccc;
+      background-color: #f7f7f7;
+    }
+    .tile {
+      stroke: #fff;
+      stroke-width: 1px;
+    }
+    #tooltip {
+      position: absolute;
+      padding: 8px;
+      background-color: rgba(0,0,0,0.8);
+      color: white;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      font-size: 14px;
+    }
+    #legend {
+      margin: 10px auto;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      margin: 0 5px;
+      display: flex;
+      align-items: center;
+    }
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 5px;
+      border: 1px solid #000;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Movie Sales Tree Map</div>
+  <div id="description">Top 100 Highest Grossing Movies Grouped by Genre</div>
+  <svg width="1000" height="600"></svg>
+  <div id="legend"></div>
+  <div id="tooltip"></div>
+
+  <script>
+    const svg = d3.select("svg");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
+    const tooltip = d3.select("#tooltip");
+
+    const url = "https://cdn.freecodecamp.org/testable-projects-fcc/data/tree_map/movie-data.json";
+
+    d3.json(url).then(data => {
+      // Create hierarchy
+      const root = d3.hierarchy(data)
+        .sum(d => d.value)
+        .sort((a,b) => b.value - a.value);
+
+      // Tree map layout
+      d3.treemap()
+        .size([width, height])
+        .padding(1)
+        (root);
+
+      // Color scale for categories
+      const categories = root.children.map(d => d.data.name);
+      const color = d3.scaleOrdinal(d3.schemeCategory10)
+        .domain(categories);
+
+      // Draw tiles
+      svg.selectAll("rect")
+        .data(root.leaves())
+        .enter()
+        .append("rect")
+        .attr("class", "tile")
+        .attr("data-name", d => d.data.name)
+        .attr("data-category", d => d.data.category)
+        .attr("data-value", d => d.data.value)
+        .attr("x", d => d.x0)
+        .attr("y", d => d.y0)
+        .attr("width", d => d.x1 - d.x0)
+        .attr("height", d => d.y1 - d.y0)
+        .attr("fill", d => color(d.data.category))
+        .on("mouseover", function(event, d) {
+          tooltip.style("opacity", 0.9)
+                 .html(`Name: ${d.data.name}<br>Category: ${d.data.category}<br>Value: $${d.data.value.toLocaleString()}`)
+                 .attr("data-value", d.data.value)
+                 .style("left", (event.pageX + 10) + "px")
+                 .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", function() { tooltip.style("opacity", 0); });
+
+      // Legend
+      const legend = d3.select("#legend");
+      categories.forEach(cat => {
+        const item = legend.append("div").attr("class", "legend-item");
+        item.append("div")
+            .attr("class", "legend-color")
+            .style("background-color", color(cat));
+        item.append("span").text(cat);
+      });
+    });
+  </script>
+</body>
+</html>
